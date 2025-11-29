@@ -1,0 +1,30 @@
+[package]
+name = "CarbonMarketplace"
+version = "1.0.0"
+authors = ["Carbon Offset Marketplace 2.0 Team"]
+
+[addresses]
+carbon_marketplace = "_"
+std = "0x1"
+aptos_framework = "0x1"
+aptos_std = "0x1"
+
+[dev-addresses]
+carbon_marketplace = "0x42"
+
+[dependencies.AptosFramework]
+git = "https://github.com/aptos-labs/aptos-core.git"
+rev = "mainnet"
+subdir = "aptos-move/framework/aptos-framework"
+
+[dependencies.AptosStdlib]
+git = "https://github.com/aptos-labs/aptos-core.git"
+rev = "mainnet"
+subdir = "aptos-move/framework/aptos-stdlib"
+
+[dependencies.MoveStdlib]
+git = "https://github.com/aptos-labs/aptos-core.git"
+rev = "mainnet"
+subdir = "aptos-move/framework/move-stdlib"
+
+[dev-dependencies]
