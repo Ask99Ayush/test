@@ -1,0 +1,573 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  username  String   @unique
+  password  String
+  role      UserRole @default(COMPANY)
+
+  // Profile Information
+  fullName      String?
+  companyName   String?
+  profileImage  String?
+  bio          String?
+  website      String?
+
+  // KYC Information
+  isVerified   Boolean @default(false)
+  kycStatus    KycStatus @default(PENDING)
+  kycDocuments Json?
+
+  // Blockchain
+  aptosAddress String?
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  lastLogin DateTime?
+
+  // Relations
+  projects         Project[]
+  credits         CarbonCredit[]
+  buyOrders       BuyOrder[]
+  sellOrders      SellOrder[]
+  transactions    Transaction[]
+  certificates    Certificate[]
+  apiKeys         ApiKey[]
+  sessions        Session[]
+  notifications   Notification[]
+  reviews         Review[]
+  reviewsGiven    Review[] @relation("ReviewerUser")
+
+  @@map("users")
+}
+
+model Project {
+  id          String @id @default(cuid())
+  name        String
+  description String
+  projectType ProjectType
+  location    String
+
+  // Project Details
+  totalCreditCapacity   Int
+  creditPrice          Float
+  certificationStandard String
+  startDate           DateTime
+  endDate             DateTime?
+
+  // Verification
+  isVerified     Boolean @default(false)
+  verifiedBy     String?
+  verifiedAt     DateTime?
+
+  // Documentation
+  documents      Json?
+  images         String[]
+
+  // Metrics
+  totalCreditsIssued   Int @default(0)
+  totalCreditsRetired  Int @default(0)
+  totalRevenue        Float @default(0)
+
+  // Blockchain
+  aptosProjectId String?
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  ownerId String
+  owner   User   @relation(fields: [ownerId], references: [id])
+
+  credits        CarbonCredit[]
+  iotDevices     IoTDevice[]
+  certificates   Certificate[]
+  reviews        Review[]
+
+  @@map("projects")
+}
+
+model CarbonCredit {
+  id              String @id @default(cuid())
+  aptosTokenId    String @unique
+
+  // Credit Information
+  amount          Float
+  vintage         Int
+  creditType      CreditType
+  projectName     String
+  location        String
+  standard        String
+
+  // Status
+  status          CreditStatus @default(ACTIVE)
+  isRetired       Boolean @default(false)
+  retiredAt       DateTime?
+  retiredBy       String?
+  retirementReason String?
+
+  // Pricing
+  currentPrice    Float?
+  originalPrice   Float
+
+  // Verification
+  verificationData Json?
+  issuanceHash     String
+
+  // Timestamps
+  mintedAt  DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id])
+
+  ownerId String
+  owner   User   @relation(fields: [ownerId], references: [id])
+
+  transactions Transaction[]
+  certificates Certificate[]
+  buyOrders    BuyOrder[]
+  sellOrders   SellOrder[]
+
+  @@map("carbon_credits")
+}
+
+model Transaction {
+  id              String @id @default(cuid())
+  type            TransactionType
+  status          TransactionStatus @default(PENDING)
+
+  // Transaction Details
+  amount          Float
+  pricePerCredit  Float
+  totalPrice      Float
+  fees            Float
+
+  // Blockchain
+  aptosTransactionHash String?
+  blockHeight         BigInt?
+  gasUsed             BigInt?
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  executedAt DateTime?
+
+  // Relations
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  creditId String
+  credit   CarbonCredit @relation(fields: [creditId], references: [id])
+
+  @@map("transactions")
+}
+
+model BuyOrder {
+  id             String @id @default(cuid())
+  amount         Float
+  pricePerCredit Float
+  totalPrice     Float
+  status         OrderStatus @default(OPEN)
+
+  // Filters
+  creditType     CreditType?
+  vintage        Int?
+  location       String?
+  standard       String?
+
+  // Execution
+  filledAmount   Float @default(0)
+  avgFillPrice   Float @default(0)
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  expiresAt DateTime?
+
+  // Relations
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  creditId String?
+  credit   CarbonCredit? @relation(fields: [creditId], references: [id])
+
+  @@map("buy_orders")
+}
+
+model SellOrder {
+  id             String @id @default(cuid())
+  amount         Float
+  pricePerCredit Float
+  totalPrice     Float
+  status         OrderStatus @default(OPEN)
+
+  // Execution
+  filledAmount   Float @default(0)
+  avgFillPrice   Float @default(0)
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  expiresAt DateTime?
+
+  // Relations
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  creditId String
+  credit   CarbonCredit @relation(fields: [creditId], references: [id])
+
+  @@map("sell_orders")
+}
+
+model Certificate {
+  id               String @id @default(cuid())
+  certificateType  CertificateType
+  status          CertificateStatus @default(ACTIVE)
+
+  // Certificate Data
+  certificateHash  String @unique
+  title           String
+  description     String
+  metadata        Json
+
+  // Validity
+  issuedAt        DateTime @default(now())
+  expiresAt       DateTime?
+  revokedAt       DateTime?
+  revokedReason   String?
+
+  // Digital Signature
+  signature       String
+  publicKey       String
+
+  // Relations
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id])
+
+  creditId String?
+  credit   CarbonCredit? @relation(fields: [creditId], references: [id])
+
+  @@map("certificates")
+}
+
+model IoTDevice {
+  id          String @id @default(cuid())
+  deviceId    String @unique
+  name        String
+  deviceType  IoTDeviceType
+
+  // Location
+  latitude    Float?
+  longitude   Float?
+  location    String?
+
+  // Configuration
+  config      Json?
+  firmware    String?
+  lastSeen    DateTime?
+
+  // Status
+  status      DeviceStatus @default(ACTIVE)
+  isOnline    Boolean @default(false)
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id])
+
+  sensorData SensorData[]
+
+  @@map("iot_devices")
+}
+
+model SensorData {
+  id        String @id @default(cuid())
+
+  // Data
+  sensorType String
+  value      Float
+  unit       String
+  quality    Float @default(1.0)
+
+  // Validation
+  isValidated Boolean @default(false)
+  confidence  Float @default(1.0)
+  anomaly     Boolean @default(false)
+
+  // Blockchain
+  dataHash    String?
+  blockHash   String?
+
+  // Timestamps
+  timestamp DateTime
+  createdAt DateTime @default(now())
+
+  // Relations
+  deviceId String
+  device   IoTDevice @relation(fields: [deviceId], references: [id])
+
+  @@map("sensor_data")
+}
+
+model EmissionCalculation {
+  id              String @id @default(cuid())
+
+  // Input Data
+  industry        String
+  activityType    String
+  inputData       Json
+
+  // Results
+  scope1Emissions Float @default(0)
+  scope2Emissions Float @default(0)
+  scope3Emissions Float @default(0)
+  totalEmissions  Float
+  confidence      Float
+
+  // AI Model Info
+  modelVersion    String
+  algorithm       String
+
+  // Validation
+  isValidated     Boolean @default(false)
+  validatedBy     String?
+  validatedAt     DateTime?
+
+  // Timestamps
+  calculatedAt DateTime @default(now())
+
+  // Relations
+  userId String
+  user   User @relation(fields: [userId], references: [id])
+
+  @@map("emission_calculations")
+}
+
+model Review {
+  id        String @id @default(cuid())
+  rating    Int // 1-5 stars
+  title     String?
+  comment   String?
+  category  ReviewCategory
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  userId     String
+  user       User @relation(fields: [userId], references: [id])
+
+  reviewerId String
+  reviewer   User @relation("ReviewerUser", fields: [reviewerId], references: [id])
+
+  projectId  String?
+  project    Project? @relation(fields: [projectId], references: [id])
+
+  @@map("reviews")
+}
+
+model Notification {
+  id       String @id @default(cuid())
+  type     NotificationType
+  title    String
+  message  String
+  data     Json?
+
+  // Status
+  isRead   Boolean @default(false)
+  readAt   DateTime?
+
+  // Timestamps
+  createdAt DateTime @default(now())
+
+  // Relations
+  userId String
+  user   User @relation(fields: [userId], references: [id])
+
+  @@map("notifications")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  expiresAt DateTime
+
+  // Device Info
+  userAgent String?
+  ipAddress String?
+
+  // Timestamps
+  createdAt DateTime @default(now())
+
+  // Relations
+  userId String
+  user   User @relation(fields: [userId], references: [id])
+
+  @@map("sessions")
+}
+
+model ApiKey {
+  id          String @id @default(cuid())
+  name        String
+  key         String @unique
+  hashedKey   String
+
+  // Permissions
+  permissions Json
+
+  // Usage
+  lastUsedAt  DateTime?
+  usageCount  Int @default(0)
+
+  // Status
+  isActive    Boolean @default(true)
+  expiresAt   DateTime?
+
+  // Timestamps
+  createdAt DateTime @default(now())
+
+  // Relations
+  userId String
+  user   User @relation(fields: [userId], references: [id])
+
+  @@map("api_keys")
+}
+
+// Enums
+enum UserRole {
+  COMPANY
+  PROJECT_DEVELOPER
+  AUDITOR
+  ADMIN
+  MARKETPLACE
+}
+
+enum KycStatus {
+  PENDING
+  IN_REVIEW
+  APPROVED
+  REJECTED
+}
+
+enum ProjectType {
+  RENEWABLE_ENERGY
+  REFORESTATION
+  CARBON_CAPTURE
+  ENERGY_EFFICIENCY
+  METHANE_REDUCTION
+  SUSTAINABLE_AGRICULTURE
+  WASTE_MANAGEMENT
+}
+
+enum CreditType {
+  VCS
+  GOLD_STANDARD
+  CAR
+  CDM
+  JI
+  CUSTOM
+}
+
+enum CreditStatus {
+  ACTIVE
+  RETIRED
+  TRANSFERRED
+  LOCKED
+}
+
+enum TransactionType {
+  MINT
+  TRANSFER
+  RETIRE
+  BUY
+  SELL
+}
+
+enum TransactionStatus {
+  PENDING
+  CONFIRMED
+  FAILED
+  CANCELLED
+}
+
+enum OrderStatus {
+  OPEN
+  PARTIALLY_FILLED
+  FILLED
+  CANCELLED
+  EXPIRED
+}
+
+enum CertificateType {
+  PURCHASE
+  RETIREMENT
+  VERIFICATION
+  COMPLIANCE
+  AUDIT
+}
+
+enum CertificateStatus {
+  ACTIVE
+  EXPIRED
+  REVOKED
+}
+
+enum IoTDeviceType {
+  AIR_QUALITY
+  ENERGY_METER
+  WEATHER_STATION
+  SOIL_SENSOR
+  WATER_QUALITY
+  BIOMASS_SENSOR
+  CARBON_SENSOR
+}
+
+enum DeviceStatus {
+  ACTIVE
+  INACTIVE
+  MAINTENANCE
+  ERROR
+}
+
+enum ReviewCategory {
+  PERFORMANCE
+  DATA_QUALITY
+  DELIVERY
+  COMMUNITY
+  COMPLIANCE
+}
+
+enum NotificationType {
+  CREDIT_PURCHASED
+  CREDIT_SOLD
+  CREDIT_RETIRED
+  ORDER_FILLED
+  ORDER_CANCELLED
+  CERTIFICATE_ISSUED
+  PAYMENT_RECEIVED
+  VERIFICATION_REQUIRED
+  SYSTEM_ALERT
+}
